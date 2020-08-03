@@ -1,2 +1,3 @@
 # lucchat
-chat through tor with fernet message encryption
+server/client chat through tor with fernet message encryption
+
