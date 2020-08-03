@@ -5,6 +5,6 @@ server/client chat through tor with fernet message encryption
 - [ ] labels
 - [ ] better logo
 - [ ] test server/client through tor
-- [ ] new design
+- [ ] better design
 
 ![prev image 1](prev.png)
