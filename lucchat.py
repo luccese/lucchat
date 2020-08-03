@@ -62,7 +62,7 @@ class MyFrame(wx.Frame):
 
         global conn
         try:
-            if host[:-6] == ".onion":
+            if host[-6:] == ".onion":
                 socks.setdefaultproxy(socks.PROXY_TYPE_SOCKS5, "127.0.0.1", 9050, True)
                 conn = socks.socksocket()
                 conn.connect((host, 5555))
