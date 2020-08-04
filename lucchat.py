@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-
 import wx
 import wx.adv
 from datetime import datetime
@@ -20,6 +19,7 @@ class MyFrame(wx.Frame):
         self.enableEncryption = False
         kwds["style"] = kwds.get("style", 0) | wx.DEFAULT_FRAME_STYLE
         wx.Frame.__init__(self, *args, **kwds)
+        self.SetIcon(wx.Icon("icon.ico", wx.BITMAP_TYPE_ICO))
         self.SetSize((800, 556))
         self.text_host = wx.TextCtrl(self, wx.ID_ANY, "localhost")
         self.choice_program = wx.Choice(self, wx.ID_ANY, choices=["server", "client"])
@@ -42,6 +42,9 @@ class MyFrame(wx.Frame):
     if tor.checkInstall():
         if not(tor.checkRunning()):
             tor.runTor()
+    else:
+        tor.installTor()
+        tor.runTor()
 
     def runServer(self):
 
@@ -106,6 +109,7 @@ class MyFrame(wx.Frame):
         else:
             self.list_box_messages.InsertItems(["[{0}]  {1}".format(datetime.now().strftime("%H:%M:%S"), text)], 0)
 
+
     def __set_properties(self):
 
         self.SetTitle("lucchat")
@@ -154,7 +158,7 @@ class MyFrame(wx.Frame):
         label_2 = wx.StaticText(self, wx.ID_ANY, "B:")
         label_2.SetMinSize((36, 16))
         sizer_2.Add(label_2, 0, wx.EXPAND | wx.LEFT, 10)
-        label_3 = wx.StaticText(self, wx.ID_ANY, "C:")
+        label_3 = wx.StaticText(self, wx.ID_ANY, tor.hostnameTor())
         sizer_2.Add(label_3, 0, wx.EXPAND | wx.LEFT, 10)
         grid_sizer_5.Add(sizer_2, 1, wx.EXPAND, 0)
         grid_sizer_5.Add(self.hyperlink_github, 0, wx.ALIGN_CENTER, 0)
