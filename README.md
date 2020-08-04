@@ -2,6 +2,7 @@
 server/client chat through tor with fernet message encryption
 
 - [x] fernet encryption
+- [ ] message translation
 - [ ] labels
 - [ ] better logo
 - [ ] test server/client through tor
