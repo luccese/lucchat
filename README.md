@@ -8,3 +8,6 @@ server/client chat through tor with fernet message encryption
 - [x] better design
 
 ![prev image 1](prev.png)
+
+
+to start server just click connect when host == localhost
