@@ -5,7 +5,7 @@ import zipfile
 import psutil
 
 
-def installTor():
+def InstallTor():
 	print("Wait, I'm downloading tor.zip")
 	urllib.request.urlretrieve("https://torproject.org" + BeautifulSoup(urllib.request.urlopen('https://torproject.org/download/tor/').read(),'html.parser').find("a", class_="downloadLink")["href"],filename="tor.zip")
 	with zipfile.ZipFile("tor.zip", 'r') as zip_ref: zip_ref.extractall("TOR")
@@ -17,7 +17,7 @@ def installTor():
 	os.remove('tor.zip')
 
 
-def checkInstall():
+def CheckInstall():
 	if os.path.isfile("TOR\\Tor\\torrc"):
 		print("tor installed.")
 		return True
@@ -25,19 +25,19 @@ def checkInstall():
 		return False
 
 
-def checkRunning():
+def CheckRunning():
 	for p in psutil.process_iter(attrs=['pid', 'name']):
 		if p.info['name'] == "tor.exe":
 			print("Tor already running")
 			return True
 
 
-def runTor():
+def RunTor():
 	print("Running tor.exe")
 	os.popen("TOR\\Tor\\tor.exe -f TOR\\Tor\\torrc")
 
 
-def hostnameTor():
+def HostnameTor():
 	try:
 		with open("hostname", "r") as r:
 			hostname = r.read()
@@ -45,4 +45,3 @@ def hostnameTor():
 		return hostname
 	except Exception as ex:
 		return str(ex)
-
