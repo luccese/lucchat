@@ -6,45 +6,59 @@ import wx.adv
 from datetime import datetime
 import socks
 import socket
-import threading
+from threading import Thread
 from cryptography.fernet import Fernet
 import tor
+from locale import getdefaultlocale as language
+from googletrans import Translator
+from random import randint
 
 class MyFrame(wx.Frame):
-
-
-
     def __init__(self, *args, **kwds):
-
+        self.nickname = "{0}{1}".format("guest", randint(100, 900))
         self.enableEncryption = False
+        self.enableTranslate = False
+        self.translator = None
         kwds["style"] = kwds.get("style", 0) | wx.DEFAULT_FRAME_STYLE
         wx.Frame.__init__(self, *args, **kwds)
-        self.SetIcon(wx.Icon("icon.ico", wx.BITMAP_TYPE_ICO))
-        self.SetSize((800, 556))
+        self.SetSize((800, 580))
+        self.list_box_connection_history = wx.ListBox(self, wx.ID_ANY, choices=[""])
+        self.text_nickname = wx.TextCtrl(self, wx.ID_ANY, self.nickname)
+        self.bitmap_button_nickname = wx.BitmapButton(self, wx.ID_ANY, wx.Bitmap("img\\set-nickname-btn.jpg", wx.BITMAP_TYPE_ANY))
         self.text_host = wx.TextCtrl(self, wx.ID_ANY, "localhost")
-        self.choice_program = wx.Choice(self, wx.ID_ANY, choices=["server", "client"])
-        self.button_program = wx.Button(self, wx.ID_ANY, "Run")
+        self.bitmap_button_host = wx.BitmapButton(self, wx.ID_ANY, wx.Bitmap("img\\connect-btn.jpg", wx.BITMAP_TYPE_ANY))
         self.text_fernet = wx.TextCtrl(self, wx.ID_ANY, Fernet.generate_key())
-        self.button_fernet = wx.Button(self, wx.ID_ANY, "Decrypt")
-        self.list_box_messages = wx.ListBox(self, wx.ID_ANY, choices=[""])
-        self.text_send_message = wx.TextCtrl(self, wx.ID_ANY, style=wx.TE_PROCESS_ENTER)
-        self.text_send_message.Bind(wx.EVT_TEXT_ENTER, self.buttonSendMessage)
-        self.button_send_message = wx.Button(self, wx.ID_ANY, "Send")
-        self.hyperlink_github = wx.adv.HyperlinkCtrl(self, wx.ID_ANY, "https://github.com/luccese", "")
+        self.bitmap_button_fernet = wx.BitmapButton(self, wx.ID_ANY, wx.Bitmap("img\\message-encryption-btn.jpg", wx.BITMAP_TYPE_ANY))
+        self.list_box_messages = wx.ListBox(self, wx.ID_ANY, choices=[])
+        self.text_send_message = wx.TextCtrl(self, wx.ID_ANY, "Hello", style=wx.TE_PROCESS_ENTER)
+        self.text_send_message.Bind(wx.EVT_TEXT_ENTER, self.SendBtn)
+        self.bitmap_button_send = wx.BitmapButton(self, wx.ID_ANY, wx.Bitmap("img\\send-btn.jpg", wx.BITMAP_TYPE_ANY))
+        self.bitmap_button_message_encryption = wx.BitmapButton(self, wx.ID_ANY, wx.Bitmap("img\\message-translation-btn.jpg", wx.BITMAP_TYPE_ANY))
 
         self.__set_properties()
         self.__do_layout()
 
-        self.Bind(wx.EVT_BUTTON, self.buttonProgramStart, self.button_program)
-        self.Bind(wx.EVT_BUTTON, self.buttonFernetEncryption, self.button_fernet)
-        self.Bind(wx.EVT_BUTTON, self.buttonSendMessage, self.button_send_message)
+        self.Bind(wx.EVT_BUTTON, self.SetNicknameBtn, self.bitmap_button_nickname)
+        self.Bind(wx.EVT_BUTTON, self.ConnectBtn, self.bitmap_button_host)
+        self.Bind(wx.EVT_BUTTON, self.MessageEncryptionBtn, self.bitmap_button_fernet)
+        self.Bind(wx.EVT_BUTTON, self.SendBtn, self.bitmap_button_send)
+        self.Bind(wx.EVT_BUTTON, self.EnableTranslationBtn, self.bitmap_button_message_encryption)
 
-    if tor.checkInstall():
-        if not(tor.checkRunning()):
-            tor.runTor()
+        with open("connection-history.log", "r") as r:
+            for x in r.readlines():
+                self.list_box_connection_history.InsertItems([x], 0)
+            r.close()
+
+
+
+
+    if tor.CheckInstall():
+        if not(tor.CheckRunning()):
+            tor.RunTor()
     else:
-        tor.installTor()
-        tor.runTor()
+        tor.InstallTor()
+        tor.RunTor()
+
 
     def runServer(self):
 
@@ -98,107 +112,134 @@ class MyFrame(wx.Frame):
 
     def printText(self, text):
 
-        if isinstance(text, bytes):
+        if isinstance(text, bytes): #recv messages
             if self.enableEncryption:
                 try:
-                    self.list_box_messages.InsertItems(["[{0}]  {1}".format(datetime.now().strftime("%H:%M:%S"), str(fObj.decrypt(text), 'utf-8'))], 0)
+                    ready_text = "[{0}]  {1}".format(datetime.now().strftime("%H:%M:%S"), str(fObj.decrypt(text), 'utf-8'))
                 except Exception as ex:
-                    self.printText(ex)
+                    ready_text = str(ex)
             else:
-                self.list_box_messages.InsertItems(["[{0}]  {1}".format(datetime.now().strftime("%H:%M:%S"), str(text, 'utf-8'))], 0)
+                ready_text = "[{0}]  {1}".format(datetime.now().strftime("%H:%M:%S"), str(text, 'utf-8'))
         else:
-            self.list_box_messages.InsertItems(["[{0}]  {1}".format(datetime.now().strftime("%H:%M:%S"), text)], 0)
+            ready_text = "[{0}]  {1}".format(datetime.now().strftime("%H:%M:%S"), text)
+        if self.enableTranslate == True:
+            self.list_box_messages.InsertItems([self.translator.translate(ready_text, dest=language()[0][0:2]).text], 0)
+        else:
+            self.list_box_messages.InsertItems([ready_text], 0)
+
 
 
     def __set_properties(self):
 
         self.SetTitle("lucchat")
-        self.SetBackgroundColour(wx.BLACK)
-        self.SetForegroundColour(wx.WHITE)
-        self.text_host.SetMinSize((200, 25))
-        self.text_host.SetBackgroundColour(wx.BLACK)
-        self.text_host.SetForegroundColour(wx.WHITE)
-        self.choice_program.SetMinSize((100, 25))
-        self.choice_program.SetSelection(0)
-        self.button_program.SetMinSize((100, 25))
-        self.text_fernet.SetMinSize((350, 25))
-        self.text_fernet.SetBackgroundColour(wx.BLACK)
-        self.text_fernet.SetForegroundColour(wx.WHITE)
-        self.button_fernet.SetMinSize((100, 25))
-        self.list_box_messages.SetMinSize((784, 125))
-        self.list_box_messages.SetBackgroundColour(wx.BLACK)
-        self.list_box_messages.SetForegroundColour(wx.WHITE)
-        self.text_send_message.SetMinSize((350, 25))
-        self.text_send_message.SetBackgroundColour(wx.BLACK)
-        self.text_send_message.SetForegroundColour(wx.WHITE)
-        self.button_send_message.SetMinSize((100, 25))
+        self.SetIcon(wx.Icon("img\\icon.ico", wx.BITMAP_TYPE_ICO))
+        self.SetBackgroundColour(wx.Colour(98, 98, 98))
+        self.SetForegroundColour(wx.Colour(255, 255, 255))
+        self.SetFont(wx.Font(9, wx.FONTFAMILY_MODERN, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL, 0, "Consolas"))
+        self.list_box_connection_history.SetMinSize((550, 100))
+        self.list_box_connection_history.SetBackgroundColour(wx.Colour(98, 98, 98))
+        self.list_box_connection_history.SetForegroundColour(wx.Colour(255, 255, 255))
+        self.text_nickname.SetMinSize((150, 25))
+        self.bitmap_button_nickname.SetMinSize((100, 25))
+        self.bitmap_button_nickname.SetBitmapDisabled(wx.Bitmap("img\\disabledBtn.jpg", wx.BITMAP_TYPE_ANY))
+        self.bitmap_button_nickname.SetBitmapPressed(wx.Bitmap("img\\set-nickname-btn-clicked.jpg", wx.BITMAP_TYPE_ANY))
+        self.text_host.SetMinSize((340, 25))
+        self.bitmap_button_host.SetMinSize((100, 25))
+        self.bitmap_button_host.SetBitmapPressed(wx.Bitmap("img\\connect-btn-clicked.jpg", wx.BITMAP_TYPE_ANY))
+        self.text_fernet.SetMinSize((340, 25))
+        self.bitmap_button_fernet.SetMinSize((100, 25))
+        self.bitmap_button_fernet.SetBitmapPressed(wx.Bitmap("img\\message-encryption-btn-clicked.jpg", wx.BITMAP_TYPE_ANY))
+        self.list_box_messages.SetMinSize((550, 230))
+        self.list_box_messages.SetBackgroundColour(wx.Colour(98, 98, 98))
+        self.list_box_messages.SetForegroundColour(wx.Colour(255, 255, 255))
+        self.text_send_message.SetMinSize((340, 25))
+        self.bitmap_button_send.SetMinSize((100, 25))
+        self.bitmap_button_send.SetBitmapPressed(wx.Bitmap("img\\send-btn-clicked.jpg", wx.BITMAP_TYPE_ANY))
+        self.bitmap_button_message_encryption.SetMinSize((100, 25))
+        self.bitmap_button_message_encryption.SetBitmapPressed(wx.Bitmap("img\\message-translation-btn-clicked.jpg", wx.BITMAP_TYPE_ANY))
+
 
     def __do_layout(self):
 
+        grid_sizer_2 = wx.FlexGridSizer(1, 2, 0, 0)
         sizer_1 = wx.BoxSizer(wx.VERTICAL)
-        grid_sizer_4 = wx.GridSizer(2, 1, 0, 0)
-        grid_sizer_5 = wx.GridSizer(2, 2, 0, 0)
-        sizer_2 = wx.BoxSizer(wx.VERTICAL)
-        grid_sizer_3 = wx.GridSizer(1, 2, 0, 0)
-        grid_sizer_2 = wx.GridSizer(1, 3, 0, 0)
-        bitmap_1 = wx.StaticBitmap(self, wx.ID_ANY, wx.Bitmap("logo.jpg", wx.BITMAP_TYPE_ANY))
-        sizer_1.Add(bitmap_1, 0, wx.ALIGN_CENTER_HORIZONTAL, 0)
-        grid_sizer_2.Add(self.text_host, 0, wx.ALIGN_CENTER, 0)
-        grid_sizer_2.Add(self.choice_program, 0, wx.ALIGN_CENTER, 0)
-        grid_sizer_2.Add(self.button_program, 0, wx.ALIGN_CENTER, 0)
-        sizer_1.Add(grid_sizer_2, 1, wx.ALL | wx.EXPAND, 0)
-        grid_sizer_3.Add(self.text_fernet, 0, wx.ALIGN_CENTER | wx.LEFT, 20)
-        grid_sizer_3.Add(self.button_fernet, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALIGN_RIGHT | wx.RIGHT, 83)
-        sizer_1.Add(grid_sizer_3, 1, wx.EXPAND, 0)
-        grid_sizer_4.Add(self.list_box_messages, 0, 0, 0)
-        grid_sizer_5.Add(self.text_send_message, 0, wx.ALIGN_CENTER | wx.LEFT, 20)
-        grid_sizer_5.Add(self.button_send_message, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALIGN_RIGHT | wx.RIGHT, 83)
-        label_1 = wx.StaticText(self, wx.ID_ANY, "A:")
-        sizer_2.Add(label_1, 0, wx.EXPAND | wx.LEFT, 10)
-        label_2 = wx.StaticText(self, wx.ID_ANY, "B:")
-        label_2.SetMinSize((36, 16))
-        sizer_2.Add(label_2, 0, wx.EXPAND | wx.LEFT, 10)
-        label_3 = wx.StaticText(self, wx.ID_ANY, tor.hostnameTor())
-        sizer_2.Add(label_3, 0, wx.EXPAND | wx.LEFT, 10)
-        grid_sizer_5.Add(sizer_2, 1, wx.EXPAND, 0)
-        grid_sizer_5.Add(self.hyperlink_github, 0, wx.ALIGN_CENTER, 0)
-        grid_sizer_4.Add(grid_sizer_5, 0, wx.ALL | wx.EXPAND, 0)
-        sizer_1.Add(grid_sizer_4, 1, wx.EXPAND, 0)
-        self.SetSizer(sizer_1)
+        sizer_4 = wx.BoxSizer(wx.HORIZONTAL)
+        sizer_3 = wx.FlexGridSizer(1, 3, 0, 0)
+        sizer_2 = wx.FlexGridSizer(1, 3, 0, 0)
+        sizer_5 = wx.FlexGridSizer(1, 3, 0, 0)
+        sizer_1.Add(self.list_box_connection_history, 0, wx.BOTTOM | wx.LEFT, 30)
+        sizer_5.Add(self.text_nickname, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 30)
+        sizer_5.Add((300, 25), 0, wx.ALIGN_BOTTOM, 0)
+        sizer_5.Add(self.bitmap_button_nickname, 0, 0, 0)
+        sizer_1.Add(sizer_5, 1, wx.EXPAND, 0)
+        sizer_2.Add(self.text_host, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 30)
+        sizer_2.Add((110, 25), 0, wx.ALIGN_CENTER_VERTICAL, 0)
+        sizer_2.Add(self.bitmap_button_host, 0, 0, 0)
+        sizer_1.Add(sizer_2, 1, wx.EXPAND, 0)
+        sizer_3.Add(self.text_fernet, 0, wx.LEFT, 30)
+        sizer_3.Add((110, 25), 0, 0, 0)
+        sizer_3.Add(self.bitmap_button_fernet, 0, 0, 0)
+        sizer_1.Add(sizer_3, 1, wx.EXPAND, 0)
+        sizer_1.Add(self.list_box_messages, 0, wx.LEFT, 30)
+        sizer_4.Add(self.text_send_message, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 30)
+        sizer_4.Add(self.bitmap_button_send, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5)
+        sizer_4.Add(self.bitmap_button_message_encryption, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5)
+        sizer_1.Add(sizer_4, 1, wx.EXPAND, 0)
+        grid_sizer_2.Add(sizer_1, 1, wx.EXPAND, 0)
+        bitmap_1 = wx.StaticBitmap(self, wx.ID_ANY, wx.Bitmap("img\\onion.png", wx.BITMAP_TYPE_ANY))
+        grid_sizer_2.Add(bitmap_1, 0, 0, 0)
+        self.SetSizer(grid_sizer_2)
         self.Layout()
+        self.Centre()
 
-    def buttonProgramStart(self, event):
 
-        if self.choice_program.GetSelection() == 0:
+    def SetNicknameBtn(self, event):
+        self.nickname = self.text_nickname.GetValue()
+        self.bitmap_button_nickname.Disable()
+
+    def ConnectBtn(self, event):
+        host_connect = self.text_host.GetValue()
+        if host_connect == "localhost":
             self.printText("I just started the server on host 127.0.0.1 and port 5555.")
-            server = threading.Thread(target=self.runServer)
+            server = Thread(target=self.runServer)
             server.start()
         else:
-            client = threading.Thread(target=self.connectClient, args=(self.text_host.GetValue(),))
+            with open("connection-history.log", "a") as w:
+                w.write(host_connect + "\n")
+                w.close()
+            self.list_box_connection_history.InsertItems([host_connect], 0)
+            client = Thread(target=self.connectClient, args=(host_connect,))
             client.start()
 
-    def buttonFernetEncryption(self, event):
-
+    def MessageEncryptionBtn(self, event):
         global fObj
         fKey = self.text_fernet.GetValue()
         self.enableEncryption = True
         fObj = Fernet(fKey)
 
-    def buttonSendMessage(self, event):
-
-        text = self.text_send_message.GetValue()
+    def SendBtn(self, event):
+        text = "<{0}> {1}".format(self.nickname, self.text_send_message.GetValue())
         self.printText(text)
         self.sendMessage(text)
         self.text_send_message.Clear()
 
+    def EnableTranslationBtn(self, event):
+
+        self.enableTranslate = not self.enableTranslate
+
+        if self.translator is None:
+            self.translator = Translator()
+
+
+
 class MyApp(wx.App):
-
     def OnInit(self):
-
         self.frame = MyFrame(None, wx.ID_ANY, "")
         self.SetTopWindow(self.frame)
         self.frame.Show()
         return True
+
+
 
 if __name__ == "__main__":
     app = MyApp(0)
