@@ -18,7 +18,8 @@ class MyFrame(wx.Frame):
         self.nickname = "{0}{1}".format("guest", randint(100, 900))
         self.enableEncryption = False
         self.enableTranslate = False
-        self.translator = None
+        self.tObj = None
+        self.fObj = None
         kwds["style"] = kwds.get("style", 0) | wx.DEFAULT_FRAME_STYLE
         wx.Frame.__init__(self, *args, **kwds)
         self.SetSize((800, 580))
@@ -104,7 +105,7 @@ class MyFrame(wx.Frame):
 
         try:
             if self.enableEncryption:
-                conn.send(fObj.encrypt(bytes(message, 'utf-8')))
+                conn.send(self.fObj.encrypt(bytes(message, 'utf-8')))
             else:
                 conn.send(bytes(message, 'utf-8'))
         except Exception as ex:
@@ -115,7 +116,7 @@ class MyFrame(wx.Frame):
         if isinstance(text, bytes): #recv messages
             if self.enableEncryption:
                 try:
-                    ready_text = "[{0}]  {1}".format(datetime.now().strftime("%H:%M:%S"), str(fObj.decrypt(text), 'utf-8'))
+                    ready_text = "[{0}]  {1}".format(datetime.now().strftime("%H:%M:%S"), str(self.fObj.decrypt(text), 'utf-8'))
                 except Exception as ex:
                     ready_text = str(ex)
             else:
@@ -123,7 +124,7 @@ class MyFrame(wx.Frame):
         else:
             ready_text = "[{0}]  {1}".format(datetime.now().strftime("%H:%M:%S"), text)
         if self.enableTranslate == True:
-            self.list_box_messages.InsertItems([self.translator.translate(ready_text, dest=language()[0][0:2]).text], 0)
+            self.list_box_messages.InsertItems([self.tObj.translate(ready_text, dest=language()[0][0:2]).text], 0)
         else:
             self.list_box_messages.InsertItems([ready_text], 0)
 
@@ -212,10 +213,9 @@ class MyFrame(wx.Frame):
             client.start()
 
     def MessageEncryptionBtn(self, event):
-        global fObj
-        fKey = self.text_fernet.GetValue()
-        self.enableEncryption = True
-        fObj = Fernet(fKey)
+        self.enableEncryption = not self.enableEncryption
+        if self.fObj == None:
+            self.fObj = Fernet(self.text_fernet.GetValue())
 
     def SendBtn(self, event):
         text = "<{0}> {1}".format(self.nickname, self.text_send_message.GetValue())
@@ -224,11 +224,9 @@ class MyFrame(wx.Frame):
         self.text_send_message.Clear()
 
     def EnableTranslationBtn(self, event):
-
         self.enableTranslate = not self.enableTranslate
-
-        if self.translator is None:
-            self.translator = Translator()
+        if self.tObj is None:
+            self.tObj = Translator()
 
 
 
